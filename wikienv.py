@@ -1,5 +1,6 @@
 import ast
 import json
+import os
 import time
 import gym
 import requests
@@ -8,7 +9,12 @@ from bs4 import BeautifulSoup
 # import wikipedia
 
 def clean_str(p):
-  return p.encode().decode("unicode-escape").encode("latin1").decode("utf-8")
+  # BeautifulSoup already returns Unicode. Preserve historical output where
+  # decoding works, but keep literal backslashes and Unicode on decode errors.
+  try:
+    return p.encode().decode("unicode-escape").encode("latin1").decode("utf-8")
+  except UnicodeError:
+    return p
 
 
 class textSpace(gym.spaces.Space):
@@ -95,22 +101,43 @@ class WikiEnv(gym.Env):
     #     break
     # return ret
 
-  def search_step(self, entity):
-    entity_ = entity.replace(" ", "+")
-    search_url = f"https://en.wikipedia.org/w/index.php?search={entity_}"
+  def search_step(self, entity, _depth=0):
+    search_url = "https://en.wikipedia.org/w/index.php"
     old_time = time.time()
-    response_text = requests.get(search_url).text
+    response = requests.get(
+      search_url,
+      params={"search": entity},
+      headers={"User-Agent": os.getenv(
+        "WIKIPEDIA_USER_AGENT",
+        "ReActReplication/1.0 (https://github.com/ysymyth/ReAct)"
+      )},
+      timeout=30,
+    )
+    response.raise_for_status()
+    response_text = response.text
+    response.close()
+    del response
     self.search_time += time.time() - old_time
     self.num_searches += 1
     soup = BeautifulSoup(response_text, features="html.parser")
+    del response_text
     result_divs = soup.find_all("div", {"class": "mw-search-result-heading"})
     if result_divs:  # mismatch
       self.result_titles = [clean_str(div.get_text().strip()) for div in result_divs]
+      soup.decompose()
       self.obs = f"Could not find {entity}. Similar: {self.result_titles[:5]}."
     else:
       page = [p.get_text().strip() for p in soup.find_all("p") + soup.find_all("ul")]
+      # Release the HTML tree before fetching another page or returning.
+      soup.decompose()
       if any("may refer to:" in p for p in page):
-        self.search_step("[" + entity + "]")
+        del page, soup, result_divs
+        if _depth >= 2:
+          self.page = None
+          self.lookup_keyword = self.lookup_list = self.lookup_cnt = None
+          self.obs = f"Could not resolve {entity}: ambiguous Wikipedia page. Search a more specific entity."
+        else:
+          self.search_step("[" + entity + "]", _depth=_depth + 1)
       else:
         self.page = ""
         for p in page:

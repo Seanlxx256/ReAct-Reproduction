@@ -5,6 +5,8 @@ GPT-3 prompting code for ICLR 2023 paper [ReAct: Synergizing Reasoning and Actin
 To use ReAct for more tasks, consider trying [LangChain's zero-shot ReAct Agent](https://python.langchain.com/docs/modules/agents/agent_types/react.html).
 
 ## Setup
+
+For a modern chat-model runner with HotpotQA / FEVER comparison methods, see [the Chinese reproduction guide](REPRODUCE.zh-CN.md). Run `python run_qa.py --methods all --check` for an offline configuration check. The original notebooks below remain historical examples.
 You need to first have an OpenAI API key and store it in the environment variable ``OPENAI_API_KEY`` (see [here](https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety)).
 
 Package requirement: ``openai``, and install ``alfworld`` following instructions [here](https://github.com/alfworld/alfworld).

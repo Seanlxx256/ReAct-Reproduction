@@ -81,7 +81,8 @@ class HotPotQAWrapper(gym.Wrapper):
   def __init__(self, env, split):
     super().__init__(env)
     data_file = f"{DATA_DIR}/{HOTPOTQA_SPLIT_FILE[split]}"
-    self.data = json.load(open(data_file))
+    with open(data_file, encoding="utf-8") as reader:
+      self.data = json.load(reader)
     self.data = [(d['question'], d['answer']) for d in self.data]
     self.data_idx = 0
     self.split = split
@@ -141,7 +142,7 @@ class FeverWrapper(gym.Wrapper):
     super().__init__(env)
     
     data_path = f"./data/{FEVER_SPLIT_FILE[split]}"
-    with open(data_path, "r") as json_file:
+    with open(data_path, "r", encoding="utf-8") as json_file:
       json_list = list(json_file)
 
     data = []
